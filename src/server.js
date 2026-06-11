@@ -14,7 +14,7 @@ const port = process.env.PORT || 5000;
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-  process.env.CLIENT_URL,
+  "https://google-docs-frontend-tau.vercel.app",
 ].filter(Boolean);
 
 app.use(

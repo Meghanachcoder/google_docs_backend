@@ -11,44 +11,15 @@ const uploadRoutes = require("./routes/uploads");
 const app = express();
 const port = process.env.PORT || 5000;
 
-const allowedOrigins = [
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  process.env.CLIENT_URL,
-  ...(process.env.CLIENT_URLS || "").split(","),
-].filter(Boolean);
+const corsOptions = {
+  origin: true,
+  methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  optionsSuccessStatus: 204,
+};
 
-function isAllowedOrigin(origin) {
-  if (!origin) {
-    return true;
-  }
-
-  if (allowedOrigins.includes(origin)) {
-    return true;
-  }
-
-  try {
-    const hostname = new URL(origin).hostname;
-    return hostname === "vercel.app" || hostname.endsWith(".vercel.app");
-  } catch (error) {
-    return false;
-  }
-}
-
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (isAllowedOrigin(origin)) {
-        callback(null, true);
-        return;
-      }
-
-      callback(new Error("Not allowed by CORS"));
-    },
-    methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  })
-);
+app.use(cors(corsOptions));
+app.options(/.*/, cors(corsOptions));
 app.use(express.json({ limit: "2mb" }));
 
 app.get("/api/health", (req, res) => {

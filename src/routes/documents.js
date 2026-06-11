@@ -2,6 +2,7 @@ const express = require("express");
 const mongoose = require("mongoose");
 const Document = require("../models/Document");
 const User = require("../models/User");
+const { canEditDocument } = require("../utils/documentAccess");
 
 const router = express.Router();
 
@@ -59,13 +60,7 @@ async function saveDocument(req, res, routeLabel) {
       return res.status(404).json({ message: "Document was not found" });
     }
 
-    const canEdit =
-      document.owner.toString() === userObjectId.toString() ||
-      document.sharedWith.some(
-        (sharedUserId) => sharedUserId.toString() === userObjectId.toString()
-      );
-
-    if (!canEdit) {
+    if (!canEditDocument(document, userObjectId)) {
       return res.status(403).json({ message: "You do not have access to edit this document" });
     }
 

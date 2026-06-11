@@ -189,10 +189,6 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-router.patch("/:id", async (req, res) => {
-  return saveDocument(req, res, "PATCH /:id");
-});
-
 router.post("/:id/save", async (req, res) => {
   return saveDocument(req, res, "POST /:id/save");
 });

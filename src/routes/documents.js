@@ -5,7 +5,25 @@ const User = require("../models/User");
 
 const router = express.Router();
 
-function toObjectId(id, label = "userId") {
+function logRouteError(route, error) {
+  console.error(`[documents] ${route} failed`, {
+    message: error.message,
+    stack: error.stack,
+  });
+}
+
+function logDocumentPayload(action, payload) {
+  console.log(`[documents] ${action}`, {
+    documentId: payload.documentId,
+    ownerId: payload.ownerId,
+    userId: payload.userId,
+    title: payload.title,
+    hasContent: typeof payload.content === "string" && payload.content.length > 0,
+    contentLength: typeof payload.content === "string" ? payload.content.length : null,
+  });
+}
+
+function toObjectId(id) {
   if (!mongoose.Types.ObjectId.isValid(id)) {
     return null;
   }
@@ -47,6 +65,7 @@ router.get("/", async (req, res) => {
 
     res.json({ owned, shared });
   } catch (error) {
+    logRouteError("GET /", error);
     res.status(500).json({ message: "Failed to load documents" });
   }
 });
@@ -54,6 +73,7 @@ router.get("/", async (req, res) => {
 router.post("/", async (req, res) => {
   try {
     const { title, content = "", ownerId } = req.body;
+    logDocumentPayload("create request", { title, content, ownerId });
 
     if (!ownerId) {
       return res.status(400).json({ message: "ownerId is required" });
@@ -65,7 +85,7 @@ router.post("/", async (req, res) => {
       return res.status(404).json({ message: "Owner user was not found" });
     }
 
-    const ownerObjectId = toObjectId(ownerId, "ownerId");
+    const ownerObjectId = toObjectId(ownerId);
 
     if (!ownerObjectId) {
       return res.status(400).json({ message: "Invalid ownerId" });
@@ -80,6 +100,7 @@ router.post("/", async (req, res) => {
     const populatedDocument = await populateDocument(document._id);
     res.status(201).json(populatedDocument);
   } catch (error) {
+    logRouteError("POST /", error);
     res.status(500).json({ message: "Failed to create document" });
   }
 });
@@ -109,6 +130,7 @@ router.get("/:id", async (req, res) => {
 
     res.json(document);
   } catch (error) {
+    logRouteError("GET /:id", error);
     res.status(500).json({ message: "Failed to load document" });
   }
 });
@@ -116,6 +138,12 @@ router.get("/:id", async (req, res) => {
 router.patch("/:id", async (req, res) => {
   try {
     const { title, content, userId } = req.body;
+    logDocumentPayload("save request", {
+      documentId: req.params.id,
+      title,
+      content,
+      userId,
+    });
     const userObjectId = toObjectId(userId);
 
     if (!userObjectId) {
@@ -148,8 +176,15 @@ router.patch("/:id", async (req, res) => {
 
     await document.save();
     const populatedDocument = await populateDocument(document._id);
+    logDocumentPayload("save success", {
+      documentId: populatedDocument._id.toString(),
+      title: populatedDocument.title,
+      content: populatedDocument.content,
+      userId,
+    });
     res.json(populatedDocument);
   } catch (error) {
+    logRouteError("PATCH /:id", error);
     res.status(500).json({ message: "Failed to save document" });
   }
 });

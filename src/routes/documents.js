@@ -38,6 +38,60 @@ async function populateDocument(documentId) {
     .populate("attachments");
 }
 
+async function saveDocument(req, res, routeLabel) {
+  try {
+    const { title, content, userId } = req.body;
+    logDocumentPayload("save request", {
+      documentId: req.params.id,
+      title,
+      content,
+      userId,
+    });
+    const userObjectId = toObjectId(userId);
+
+    if (!userObjectId) {
+      return res.status(400).json({ message: "Invalid userId" });
+    }
+
+    const document = await Document.findById(req.params.id);
+
+    if (!document) {
+      return res.status(404).json({ message: "Document was not found" });
+    }
+
+    const canEdit =
+      document.owner.toString() === userObjectId.toString() ||
+      document.sharedWith.some(
+        (sharedUserId) => sharedUserId.toString() === userObjectId.toString()
+      );
+
+    if (!canEdit) {
+      return res.status(403).json({ message: "You do not have access to edit this document" });
+    }
+
+    if (title !== undefined) {
+      document.title = title || "Untitled document";
+    }
+
+    if (content !== undefined) {
+      document.content = content;
+    }
+
+    await document.save();
+    const populatedDocument = await populateDocument(document._id);
+    logDocumentPayload("save success", {
+      documentId: populatedDocument._id.toString(),
+      title: populatedDocument.title,
+      content: populatedDocument.content,
+      userId,
+    });
+    res.json(populatedDocument);
+  } catch (error) {
+    logRouteError(routeLabel, error);
+    res.status(500).json({ message: "Failed to save document" });
+  }
+}
+
 router.get("/", async (req, res) => {
   try {
     const { userId } = req.query;
@@ -136,57 +190,11 @@ router.get("/:id", async (req, res) => {
 });
 
 router.patch("/:id", async (req, res) => {
-  try {
-    const { title, content, userId } = req.body;
-    logDocumentPayload("save request", {
-      documentId: req.params.id,
-      title,
-      content,
-      userId,
-    });
-    const userObjectId = toObjectId(userId);
+  return saveDocument(req, res, "PATCH /:id");
+});
 
-    if (!userObjectId) {
-      return res.status(400).json({ message: "Invalid userId" });
-    }
-
-    const document = await Document.findById(req.params.id);
-
-    if (!document) {
-      return res.status(404).json({ message: "Document was not found" });
-    }
-
-    const canEdit =
-      document.owner.toString() === userObjectId.toString() ||
-      document.sharedWith.some(
-        (sharedUserId) => sharedUserId.toString() === userObjectId.toString()
-      );
-
-    if (!canEdit) {
-      return res.status(403).json({ message: "You do not have access to edit this document" });
-    }
-
-    if (title !== undefined) {
-      document.title = title || "Untitled document";
-    }
-
-    if (content !== undefined) {
-      document.content = content;
-    }
-
-    await document.save();
-    const populatedDocument = await populateDocument(document._id);
-    logDocumentPayload("save success", {
-      documentId: populatedDocument._id.toString(),
-      title: populatedDocument.title,
-      content: populatedDocument.content,
-      userId,
-    });
-    res.json(populatedDocument);
-  } catch (error) {
-    logRouteError("PATCH /:id", error);
-    res.status(500).json({ message: "Failed to save document" });
-  }
+router.post("/:id/save", async (req, res) => {
+  return saveDocument(req, res, "POST /:id/save");
 });
 
 module.exports = router;
